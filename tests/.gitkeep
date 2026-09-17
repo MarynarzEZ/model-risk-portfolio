@@ -1,0 +1,3 @@
+# Placeholder so Git tracks this directory while it is still empty.
+# Git versions files, not directories, so an empty tests/ would not exist
+# for anyone cloning the repo. Delete this file once real tests land here.

@@ -1,0 +1,29 @@
+# Virtual environment - reproducible from requirements.txt, not versioned
+.venv/
+venv/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Data - downloaded by script, can be large and is sometimes licensed
+data/
+*.csv
+*.parquet
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Editor and OS settings
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Secrets: API keys, IBKR credentials
+.env
+*.key
+credentials.json
+
+# Local AI assistant context - contains personal notes, kept out of the repo
+CLAUDE.md

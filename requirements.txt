@@ -1,8 +1,23 @@
-numpy
-pandas
-scipy
-matplotlib
-seaborn
-yfinance
-statsmodels
-jupyter
+# Pinned to exact versions so the project stays reproducible.
+# pandas 3.x and numpy 2.x changed several APIs, so an unpinned install
+# could break this code months from now. Alternative would be a loose
+# lower bound (e.g. pandas>=2.0), which is friendlier to other projects
+# but gives no guarantee that the numbers below reproduce exactly.
+
+# Numerical core
+numpy==2.5.3
+pandas==3.0.5
+
+# Statistics: distributions and tests (Student's t, normality, chi-square)
+scipy==1.18.1
+statsmodels==0.15.0
+
+# Market data
+yfinance==1.7.0
+
+# Plotting
+matplotlib==3.11.2
+seaborn==0.13.2
+
+# Interactive exploration and the final report notebook
+jupyter==1.1.1

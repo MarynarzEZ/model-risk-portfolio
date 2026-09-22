@@ -77,14 +77,6 @@ def portfolio_returns(
         raise ValueError("No returns to aggregate")
 
     aligned = _align_weights(returns.columns, weights)
-
-    total = float(aligned.sum())
-    if abs(total - 1.0) > _WEIGHT_TOLERANCE:
-        # Renormalising silently would be friendlier and wrong: it turns
-        # a typo into a different portfolio and reports its risk as if
-        # it were the one that was asked for.
-        raise ValueError(f"Weights must sum to 1, got {total:.6f}")
-
     return returns.mul(aligned, axis=1).sum(axis=1).rename("portfolio")
 
 
@@ -92,7 +84,13 @@ def _align_weights(
     columns: pd.Index,
     weights: Mapping[str, float] | pd.Series | Sequence[float],
 ) -> pd.Series:
-    """Match weights to return columns, by name where possible."""
+    """Match weights to return columns, by name where possible.
+
+    Every part of the package that takes weights goes through here --
+    portfolio returns, Monte Carlo simulation, portfolio volatility,
+    stress tests -- so the rules are enforced once instead of being
+    re-implemented four times and drifting apart.
+    """
     if isinstance(weights, pd.Series):
         weights = weights.to_dict()
 
@@ -118,6 +116,13 @@ def _align_weights(
     aligned = pd.Series(values, index=columns, dtype="float64")
     if not np.isfinite(aligned).all():
         raise ValueError("Weights must all be finite numbers")
+
+    total = float(aligned.sum())
+    if abs(total - 1.0) > _WEIGHT_TOLERANCE:
+        # Renormalising silently would be friendlier and wrong: it turns
+        # a typo into a different portfolio and reports its risk as if
+        # it were the one that was asked for.
+        raise ValueError(f"Weights must sum to 1, got {total:.6f}")
     return aligned
 
 

@@ -4,8 +4,8 @@ Market risk measurement for equity portfolios: Value at Risk, Expected
 Shortfall, correlation structure and stress testing.
 
 ## Status
-The measurement modules are complete and tested. A report notebook with
-charts is the remaining piece.
+Complete: measurement modules, charts, and a report notebook that runs
+end to end.
 
 ## Scope
 - VaR: historical, parametric (normal and Student's t), Monte Carlo
@@ -73,9 +73,21 @@ src/cvar.py        Expected Shortfall for each of the four
 src/covariance.py  sample and EWMA covariance, rolling correlation
 src/stress.py      historical and hypothetical scenarios
 src/backtest.py    Kupiec, Christoffersen, Basel traffic light
+src/plots.py       report charts
+report.ipynb       the whole thing, end to end
 tests/             unit tests
 data/              cached price data (not versioned)
 ```
+
+## The report
+
+`report.ipynb` runs everything above and draws it. All the inputs —
+tickers, weights, date range, confidence level, EWMA decay, backtest
+window — are collected in its first cell; change them there and re-run.
+
+The notebook is committed with its outputs cleared, so the diffs stay
+readable. Run it with `jupyter lab report.ipynb`; prices come from the
+local cache after the first run, so it takes seconds.
 
 ## Data
 Daily adjusted closes from Yahoo Finance via `yfinance`, cached under

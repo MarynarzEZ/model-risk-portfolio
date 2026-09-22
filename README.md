@@ -40,8 +40,8 @@ from src.data import load_prices
 from src.returns import portfolio_returns, simple_returns
 from src.var import var_summary
 
-weights = {"AAPL": 0.4, "MSFT": 0.4, "KO": 0.2}
-prices = load_prices(list(weights), "2006-01-01", "2024-12-31")
+weights = {"NVDA": 0.3, "META": 0.3, "MU": 0.2, "NOW": 0.2}
+prices = load_prices(list(weights), "2016-01-01", "2024-12-31")
 portfolio = portfolio_returns(simple_returns(prices), weights)
 
 print(var_summary(portfolio, confidence=0.99))
@@ -50,16 +50,19 @@ print(var_summary(portfolio, confidence=0.99))
 ```
                  var  expected_shortfall  es_var_ratio
 method
-historical   0.03918             0.05291       1.35044
-normal       0.03248             0.03734       1.14961
-student_t    0.03873             0.05859       1.51271
-monte_carlo  0.03253             0.03724       1.14478
+historical   0.05606             0.07255       1.29415
+normal       0.04899             0.05637       1.15066
+student_t    0.05795             0.08306       1.43345
+monte_carlo  0.04907             0.05623       1.14580
 ```
 
 The spread is the point. The normal assumption prices the 99% loss at
-3.25% and the data says 3.92% — and the gap widens in the Expected
+4.90% and the data says 5.61% — and the gap widens in the Expected
 Shortfall column, because that averages the tail rather than sampling
-one point on it.
+one point on it. The `es_var_ratio` of 1.15 under normality is the
+theoretical value for a normal distribution at 99%; that it comes out
+at 1.29 historically and 1.43 under a fitted Student's t is the fat
+tail being measured rather than assumed away.
 
 Run the tests with `pytest` from the repository root. None of them hit
 the network.
@@ -106,13 +109,21 @@ a truncated one.
 ## Does any of it work?
 
 `rolling_var_backtest` re-estimates VaR on a trailing 250-day window and
-tests each day out of sample. On AAPL/MSFT/KO 2006-2024 at 99%:
+tests each day out of sample. On the portfolio above at 99%:
 
-| model | exceedances | rate | Basel zone | Kupiec p |
-|---|---|---|---|---|
-| historical | 61 / 4530 | 1.35% | yellow | 0.026 |
-| normal | 107 / 4530 | 2.36% | red | 0.0000 |
+| model | exceedances | rate | Basel zone | Kupiec p | Christoffersen p |
+|---|---|---|---|---|---|
+| historical | 26 / 2013 | 1.29% | green | 0.21 | **0.045** |
+| normal | 41 / 2013 | 2.04% | red | **0.0000** | 0.27 |
 
-The normal model breaches more than twice as often as it promises, and
-the test rejects it outright. That is the entire argument for not
-quoting a parametric VaR without a backtest beside it.
+Both models fail, and they fail differently — which is why the two
+tests are separate. The normal model breaches twice as often as it
+promises and Kupiec rejects it outright. The historical model gets the
+*rate* right and would pass every test a supervisor applies, but
+Christoffersen rejects its *timing*: the breaches arrive in clusters,
+because an equally weighted window only notices a volatility spike once
+the spike is already inside it.
+
+That second failure is the one worth caring about. A model that is
+correct on average and blind during the week that mattered is not a
+safe model, and nothing but the independence test would have caught it.

@@ -21,3 +21,9 @@ seaborn==0.13.2
 
 # Interactive exploration and the final report notebook
 jupyter==1.1.1
+
+# Testing. Only needed to run the test suite, not to use the model, but
+# kept in one file rather than split into requirements-dev.txt: this is
+# a single-developer project and two files to keep in sync is the more
+# likely source of trouble.
+pytest==9.0.1

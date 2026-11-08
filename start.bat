@@ -1,6 +1,6 @@
 @echo off
-REM Launches the risk desk in the default browser.
-REM Double-click this file; no terminal, no commands to remember.
+REM Portfolio Risk Desk -- double-click launcher.
+REM Opens the app in the default browser. Close this window to stop it.
 
 cd /d "%~dp0"
 
@@ -16,16 +16,26 @@ if not exist ".venv\Scripts\python.exe" (
     exit /b 1
 )
 
-echo Uruchamiam Portfolio Risk Desk...
-echo Zamknij to okno, zeby zatrzymac aplikacje.
+echo.
+echo   Portfolio Risk Desk
+echo   -------------------
+echo   Otwieram http://localhost:8501 w przegladarce.
+echo   Zamknij to okno, zeby zatrzymac aplikacje.
 echo.
 
-REM --server.headless stops Streamlit printing its "enter your email"
-REM first-run prompt, which blocks startup when nobody is at a terminal.
-".venv\Scripts\python.exe" -m streamlit run app.py --server.headless=false --browser.gatherUsageStats=false
+REM The browser is opened from a parallel process a few seconds from now,
+REM because the server below blocks this one until it is stopped.
+REM
+REM The server runs headless on purpose. Without it, Streamlit asks for
+REM an e-mail address on its very first run and waits for an answer at a
+REM terminal nobody is looking at, so a double-click would appear to hang.
+REM Headless skips that prompt, at the cost of opening the browser here.
+start "" /B powershell -NoProfile -WindowStyle Hidden -Command "Start-Sleep -Seconds 4; Start-Process 'http://localhost:8501'"
 
-if errorlevel 1 (
-    echo.
-    echo  Aplikacja zakonczyla sie bledem. Tresc bledu jest powyzej.
-    pause
-)
+".venv\Scripts\python.exe" -m streamlit run app.py --server.headless=true --server.port=8501 --browser.gatherUsageStats=false
+
+echo.
+echo  Aplikacja zostala zatrzymana.
+echo  Jesli powodem byl blad, jego tresc jest powyzej.
+echo  Czesty powod: port 8501 jest juz zajety przez inna kopie aplikacji.
+pause

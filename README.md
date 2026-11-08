@@ -8,6 +8,10 @@ zloty.
 
 Prices come from Yahoo Finance at runtime. Nothing is committed.
 
+![VaR and Expected Shortfall view](docs/var-es.png)
+
+![Out-of-sample VaR backtest view](docs/backtest.png)
+
 ## Running it
 
 Double-click **`start.bat`**. It opens in your browser.

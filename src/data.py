@@ -168,7 +168,10 @@ def _validate(series: pd.Series, ticker: str) -> pd.Series:
 
 def _align(columns: list[pd.Series]) -> pd.DataFrame:
     """Join price series on their common trading days."""
-    frame = pd.concat(columns, axis=1, join="outer").sort_index()
+    # sort=False because the sort happens explicitly on the next call.
+    # Letting concat do it implicitly is deprecated in pandas 3 and
+    # raises a warning the moment two tickers have different calendars.
+    frame = pd.concat(columns, axis=1, join="outer", sort=False).sort_index()
     frame.index.name = "date"
 
     complete = frame.dropna(how="any")

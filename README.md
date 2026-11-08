@@ -1,129 +1,120 @@
-# Portfolio Risk Model
+# Portfolio Risk Desk
 
-Market risk measurement for equity portfolios: Value at Risk, Expected
-Shortfall, correlation structure and stress testing.
+A desktop risk tool for an equity portfolio. Type in your holdings and
+their weights, say how much money is in it, and get Value at Risk,
+Expected Shortfall, correlation structure, stress scenarios and a
+backtest that checks whether any of it holds up — in dollars and in
+zloty.
 
-## Status
-Complete: measurement modules, charts, and a report notebook that runs
-end to end.
+Prices come from Yahoo Finance at runtime. Nothing is committed.
 
-## Scope
-- VaR: historical, parametric (normal and Student's t), Monte Carlo
-- CVaR / Expected Shortfall, in closed form where one exists
-- Covariance and correlation analysis (Pearson, EWMA, rolling)
-- Stress testing against historical and hypothetical scenarios
-- VaR backtesting (Kupiec POF, Christoffersen independence and
-  conditional coverage, Basel traffic light)
+## Running it
 
-### Conventions
-VaR and Expected Shortfall are returned as **positive losses**: `0.0392`
-means a loss of 3.92% of portfolio value. Stress results are signed
-returns instead, because some scenarios are positive for some holdings.
-Everything takes *simple* returns, since only those add up across assets.
+Double-click **`start.bat`**. It opens in your browser.
 
-## Stack
-Python 3.13, NumPy, pandas, SciPy, statsmodels, yfinance, matplotlib,
-seaborn.
-
-## Getting started
+First time only, create the environment:
 
 ```bash
-git clone https://github.com/MarynarzEZ/portfolio-risk-model.git
-cd portfolio-risk-model
 python -m venv .venv
-.venv\Scripts\activate        # Windows; on macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
+.venv\Scripts\pip install -r requirements.txt
 ```
 
-```python
-from src.data import load_prices
-from src.returns import portfolio_returns, simple_returns
-from src.var import var_summary
+If you prefer a terminal: `streamlit run app.py`.
 
-weights = {"NVDA": 0.3, "META": 0.3, "MU": 0.2, "NOW": 0.2}
-prices = load_prices(list(weights), "2016-01-01", "2024-12-31")
-portfolio = portfolio_returns(simple_returns(prices), weights)
+## What you can change
 
-print(var_summary(portfolio, confidence=0.99))
+Everything lives in the left-hand panel; the whole page recomputes as
+you change it.
+
+| | |
+|---|---|
+| **Holdings** | ticker and weight per row, add and remove rows freely |
+| **Portfolio value** | entered in dollars or zloty, converted at the live rate |
+| **Period** | the estimation sample |
+| **Confidence** | 90% to 99.5%; 99% is the Basel default, 97.5% is FRTB's for ES |
+| **Report currency** | USD or PLN — see below, the difference is not cosmetic |
+| **Backtest window** | how much history each VaR forecast is estimated from |
+| **EWMA λ** | how fast the volatility estimate forgets |
+
+Weights do not have to add up to 100. They are rescaled, and the app
+says so when it does.
+
+## Dollars or zloty is a real choice
+
+A Polish investor holding US stocks carries two risks: the stocks can
+fall, and the dollar can fall against the zloty. Converting a dollar
+VaR into zloty at today's rate measures only the first one and prints
+it in zloty, which understates the exposure.
+
+So **PLN** does not relabel the dollar figure. It restates the prices
+themselves in zloty before anything is measured, which puts the FX move
+inside the return series where every estimator picks it up. **USD**
+measures the equity risk on its own. Both are right; they answer
+different questions, and the app says which one it is answering.
+
+## What it measures
+
+- **VaR** — the loss you will not exceed on a given share of days.
+  Four estimators: historical, normal, Student's t, Monte Carlo.
+- **Expected Shortfall** — the average loss on the days VaR *is*
+  exceeded. VaR is a threshold; ES reads the shape of the tail past it.
+- **Correlation** — Pearson matrix, plus rolling average pairwise
+  correlation, which shows diversification weakening in a sell-off.
+- **EWMA volatility** — conditional volatility that reacts in days
+  rather than in a year.
+- **Stress tests** — seven real crisis windows replayed at your current
+  weights, plus a shock you set yourself. A scenario the price history
+  does not cover is reported as skipped, not quietly truncated.
+- **Backtest** — Kupiec on the exceedance rate, Christoffersen on their
+  timing, Basel's traffic light. Each day's VaR is estimated from the
+  days before it, so every comparison is out of sample.
+
+The four VaR estimators disagree on purpose. The spread between them
+measures how much of the answer comes from the data and how much from
+the distribution that was assumed.
+
+## Layout
+
 ```
-
-```
-                 var  expected_shortfall  es_var_ratio
-method
-historical   0.05606             0.07255       1.29415
-normal       0.04899             0.05637       1.15066
-student_t    0.05795             0.08306       1.43345
-monte_carlo  0.04907             0.05623       1.14580
-```
-
-The spread is the point. The normal assumption prices the 99% loss at
-4.90% and the data says 5.61% — and the gap widens in the Expected
-Shortfall column, because that averages the tail rather than sampling
-one point on it. The `es_var_ratio` of 1.15 under normality is the
-theoretical value for a normal distribution at 99%; that it comes out
-at 1.29 historically and 1.43 under a fitted Student's t is the fat
-tail being measured rather than assumed away.
-
-Run the tests with `pytest` from the repository root. None of them hit
-the network.
-
-## Repository layout
-```
+app.py             the GUI; presentation only, no arithmetic
+start.bat          double-click launcher
 src/data.py        price download and on-disk cache
 src/returns.py     simple / log returns, portfolio aggregation
-src/var.py         four VaR estimators, scaling, summary table
+src/money.py       position sizing, USD/PLN, price conversion
+src/var.py         four VaR estimators and the summary table
 src/cvar.py        Expected Shortfall for each of the four
 src/covariance.py  sample and EWMA covariance, rolling correlation
 src/stress.py      historical and hypothetical scenarios
 src/backtest.py    Kupiec, Christoffersen, Basel traffic light
-src/plots.py       report charts
-report.ipynb       the whole thing, end to end
-tests/             unit tests
-data/              cached price data (not versioned)
+src/plots.py       the charts
+tests/             228 tests, none of which touch the network
+data/              cached prices (not versioned)
 ```
 
-## The report
+`app.py` holds no arithmetic of its own. Every number on the screen is
+computed in `src/`, which knows nothing about Streamlit and is tested
+without it — so a chart cannot disagree with the table beside it.
 
-`report.ipynb` runs everything above and draws it. All the inputs —
-tickers, weights, date range, confidence level, EWMA decay, backtest
-window — are collected in its first cell; change them there and re-run.
+## Conventions
 
-The notebook is committed with its outputs cleared, so the diffs stay
-readable. Run it with `jupyter lab report.ipynb`; prices come from the
-local cache after the first run, so it takes seconds.
+VaR and Expected Shortfall are **positive losses**: `0.0577` means a
+loss of 5.77%. Stress results are signed returns instead, because some
+scenarios are positive for some holdings. Everything takes *simple*
+returns, since only those add up across assets.
 
-## Data
-Daily adjusted closes from Yahoo Finance via `yfinance`, cached under
-`data/` so a result computed today can be reproduced tomorrow. Nothing
-is committed to the repository: prices are downloaded at runtime.
+Prices are kept only for dates on which every holding traded.
+Forward-filling a missing price would invent a zero return, which
+biases volatility down and correlations towards zero.
 
-Prices are restricted to dates on which every requested ticker traded.
-Forward-filling a missing price instead would invent a zero return,
-which biases volatility down and correlations towards zero.
+## Tests
 
-Stress testing needs a much longer history than VaR estimation does:
-testing the 2008 crisis requires 2008 prices. `stress.run_historical`
-refuses a window the price history does not cover rather than reporting
-a truncated one.
+```bash
+.venv\Scripts\python -m pytest
+```
 
-## Does any of it work?
-
-`rolling_var_backtest` re-estimates VaR on a trailing 250-day window and
-tests each day out of sample. On the portfolio above at 99%:
-
-| model | exceedances | rate | Basel zone | Kupiec p | Christoffersen p |
-|---|---|---|---|---|---|
-| historical | 26 / 2013 | 1.29% | green | 0.21 | **0.045** |
-| normal | 41 / 2013 | 2.04% | red | **0.0000** | 0.27 |
-
-Both models fail, and they fail differently — which is why the two
-tests are separate. The normal model breaches twice as often as it
-promises and Kupiec rejects it outright. The historical model gets the
-*rate* right and would pass every test a supervisor applies, but
-Christoffersen rejects its *timing*: the breaches arrive in clusters,
-because an equally weighted window only notices a volatility spike once
-the spike is already inside it.
-
-That second failure is the one worth caring about. A model that is
-correct on average and blind during the week that mattered is not a
-safe model, and nothing but the independence test would have caught it.
+228 tests. None of them reach the network: the one function that talks
+to Yahoo is replaced in the fixtures, and so is the price cache. The
+GUI is covered too — Streamlit's `AppTest` renders `app.py` in-process
+and the tests assert that no tab throws, that the headline figures are
+money rather than fractions, and that an empty or mis-weighted
+portfolio prompts the user instead of crashing.

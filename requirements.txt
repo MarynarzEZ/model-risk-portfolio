@@ -27,3 +27,8 @@ jupyter==1.1.1
 # a single-developer project and two files to keep in sync is the more
 # likely source of trouble.
 pytest==9.0.1
+
+# The GUI. Streamlit pulls in pyarrow, altair and uvicorn; they are
+# transitive and deliberately not pinned here, so that a Streamlit
+# upgrade is not blocked by a stale pin on something it owns.
+streamlit==1.67.0

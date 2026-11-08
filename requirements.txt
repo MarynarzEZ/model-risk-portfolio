@@ -10,17 +10,12 @@ pandas==3.0.5
 
 # Statistics: distributions and tests (Student's t, normality, chi-square)
 scipy==1.18.1
-statsmodels==0.15.0
 
 # Market data
 yfinance==1.7.0
 
 # Plotting
 matplotlib==3.11.2
-seaborn==0.13.2
-
-# Interactive exploration and the final report notebook
-jupyter==1.1.1
 
 # Testing. Only needed to run the test suite, not to use the model, but
 # kept in one file rather than split into requirements-dev.txt: this is

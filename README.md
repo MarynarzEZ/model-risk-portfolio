@@ -21,6 +21,14 @@ python -m venv .venv
 
 If you prefer a terminal: `streamlit run app.py`.
 
+**After editing anything in `src/`, restart the app.** Streamlit reloads
+`app.py` when it changes, but a module that is already imported can stay
+in memory as the version that was there at startup. Adding a function to
+`src/` and then importing it from `app.py` is the case that bites:
+`app.py` reloads, the module does not, and you get an ImportError for a
+function that is plainly sitting in the file. Closing the console window
+and launching again clears it. Editing `app.py` alone needs no restart.
+
 ## What you can change
 
 Everything lives in the left-hand panel; the whole page recomputes as

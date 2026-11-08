@@ -22,6 +22,7 @@ import pytest  # noqa: E402
 from src.backtest import rolling_var_backtest  # noqa: E402
 from src.covariance import ewma_volatility, rolling_correlation  # noqa: E402
 from src.plots import (  # noqa: E402
+    MAX_INTERACTIVE_POINTS,
     plot_backtest,
     plot_ewma_volatility,
     plot_return_distribution,
@@ -29,6 +30,7 @@ from src.plots import (  # noqa: E402
     plot_stress,
     plot_var_comparison,
     set_theme,
+    thin_for_plotting,
 )
 from src.stress import HISTORICAL_SCENARIOS, stress_table  # noqa: E402
 from src.var import var_summary  # noqa: E402
@@ -289,3 +291,97 @@ def test_every_builtin_scenario_name_fits_on_an_axis():
     for scenario in HISTORICAL_SCENARIOS:
         assert len(scenario.name) <= 30
 
+
+
+# --- thinning for interactive charts ---------------------------------
+
+
+def long_growth(days: int, columns: int = 4) -> pd.DataFrame:
+    """A cumulative-growth frame, which is a level series, not a flow."""
+    rng = np.random.default_rng(3)
+    index = pd.bdate_range("2016-01-04", periods=days, name="date")
+    data = {
+        f"A{i}": np.exp(np.cumsum(rng.normal(0.0004, 0.015, days))) for i in range(columns)
+    }
+    return pd.DataFrame(data, index=index)
+
+
+def test_a_short_series_is_left_alone():
+    frame = long_growth(300)
+
+    thinned, frequency = thin_for_plotting(frame)
+
+    assert frequency == "daily"
+    pd.testing.assert_frame_equal(thinned, frame)
+
+
+def test_a_decade_of_daily_data_is_thinned_below_the_budget():
+    """The pan stutters above this; that is the whole point."""
+    frame = long_growth(2724)
+
+    thinned, frequency = thin_for_plotting(frame)
+
+    assert frequency == "weekly"
+    assert len(thinned) <= MAX_INTERACTIVE_POINTS
+    assert len(thinned) < len(frame) / 4
+
+
+def test_thinning_keeps_the_true_starting_point():
+    """A rebased growth chart has to start where it was rebased."""
+    frame = long_growth(2724)
+    frame = frame / frame.iloc[0]
+
+    thinned, _ = thin_for_plotting(frame)
+
+    assert thinned.index[0] == frame.index[0]
+    assert (thinned.iloc[0] == 1.0).all()
+
+
+def test_thinning_keeps_the_last_observation():
+    frame = long_growth(2724)
+
+    thinned, _ = thin_for_plotting(frame)
+
+    assert thinned.index[-1] == frame.index[-1]
+    pd.testing.assert_series_equal(thinned.iloc[-1], frame.iloc[-1])
+
+
+def test_a_very_long_series_falls_back_to_a_coarser_frequency():
+    frame = long_growth(12_000)  # roughly 46 years
+
+    thinned, frequency = thin_for_plotting(frame)
+
+    assert frequency == "monthly"
+    assert len(thinned) <= MAX_INTERACTIVE_POINTS
+
+
+def test_thinning_preserves_the_shape():
+    """Reducing the point count must not move the line."""
+    frame = long_growth(2724, columns=1)
+
+    thinned, _ = thin_for_plotting(frame)
+
+    # Every thinned point is an actual observation from the original.
+    merged = frame.join(thinned, how="inner", rsuffix="_thin")
+    assert len(merged) == len(thinned)
+    assert np.allclose(merged["A0"], merged["A0_thin"])
+
+
+def test_thinning_works_on_a_single_series():
+    series = long_growth(2724, columns=1)["A0"]
+
+    thinned, frequency = thin_for_plotting(series)
+
+    assert isinstance(thinned, pd.Series)
+    assert frequency == "weekly"
+    assert len(thinned) <= MAX_INTERACTIVE_POINTS
+
+
+def test_a_non_date_index_is_rejected():
+    with pytest.raises(TypeError, match="must be dates"):
+        thin_for_plotting(pd.DataFrame({"A": range(1000)}))
+
+
+def test_an_impossible_budget_is_rejected():
+    with pytest.raises(ValueError, match="at least two points"):
+        thin_for_plotting(long_growth(1000), max_points=1)

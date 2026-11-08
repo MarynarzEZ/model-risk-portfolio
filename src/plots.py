@@ -477,3 +477,65 @@ def _require_columns(frame: pd.DataFrame, columns: list[str]) -> None:
             f"Expected column(s) {', '.join(missing)}. Pass the table the "
             f"corresponding module produces, unmodified."
         )
+
+
+# --- data reduction for interactive charts ---------------------------
+
+# Points per series an interactive chart may draw. Streamlit's built-in
+# charts pan and zoom in the browser, and the renderer redraws every
+# point on every frame of a drag, so a decade of daily closes across a
+# handful of holdings is enough to make the pan stutter. Six hundred
+# keeps ten years at weekly resolution, which is all a cumulative-growth
+# line resolves at that width anyway.
+MAX_INTERACTIVE_POINTS = 600
+
+
+def thin_for_plotting(
+    frame: pd.DataFrame | pd.Series, max_points: int = MAX_INTERACTIVE_POINTS
+) -> tuple[pd.DataFrame | pd.Series, str]:
+    """Reduce a long level series to something that pans smoothly.
+
+    Returns the thinned data and the frequency chosen, so the caller can
+    say which it is showing. Thinning a chart without saying so would be
+    a quiet change to what is on screen.
+
+    Resampling takes the last value in each period, which is the correct
+    reduction for a *level* series such as cumulative growth or a price.
+    A flow -- returns, volumes, counts of anything -- would have to be
+    summed instead, so do not reach for this function for those.
+
+    Every point that survives is a real observation on its real date.
+    That is why the dates are resampled and used to select rows, rather
+    than resampling the values directly: `resample("W").last()` keeps
+    the right value but stamps it with the end of the week, so a Friday
+    close would appear on the chart as a Sunday, and the last point of a
+    series would sit days after the last day that actually traded.
+
+    The first observation is kept explicitly. Without it the line would
+    start at the first period's close rather than at its true baseline,
+    which on a rebased growth chart means not starting at 1.
+    """
+    if max_points < 2:
+        raise ValueError(f"A chart needs at least two points, asked for {max_points}")
+    if not isinstance(frame.index, pd.DatetimeIndex):
+        raise TypeError("Thinning works on a time series; the index must be dates")
+    if len(frame) <= max_points:
+        return frame, "daily"
+
+    dates = frame.index.to_series()
+    for rule, label in (("W", "weekly"), ("ME", "monthly"), ("QE", "quarterly")):
+        keep = dates.resample(rule).last().dropna()
+        if len(keep) <= max_points:
+            return _with_first_point(frame, keep), label
+
+    # Longer than a century of daily data. Quarterly is the floor; going
+    # coarser would stop being a chart of the same thing.
+    return _with_first_point(frame, dates.resample("QE").last().dropna()), "quarterly"
+
+
+def _with_first_point(frame, keep) -> pd.DataFrame | pd.Series:
+    """Select the kept dates, with the series' own first day in front."""
+    selected = frame.loc[keep]
+    if selected.index[0] == frame.index[0]:
+        return selected
+    return pd.concat([frame.iloc[:1], selected])

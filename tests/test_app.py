@@ -97,8 +97,7 @@ def test_switching_to_zloty_changes_the_numbers():
     usd_values = [m.value for m in in_usd.get("metric")]
 
     st.cache_data.clear()
-    in_pln = run_app()
-    in_pln.radio[2].set_value("PLN").run()
+    in_pln = run_app(report_currency="PLN")
     pln_values = [m.value for m in in_pln.get("metric")]
 
     assert not in_pln.exception, [str(e.value) for e in in_pln.exception]
@@ -127,7 +126,7 @@ def test_weights_that_do_not_sum_to_one_hundred_are_handled():
     app = AppTest.from_file(APP, default_timeout=120)
     app.run()
     app.session_state["holdings"] = {
-        "edited_rows": {0: {"Waga %": 10.0}},
+        "edited_rows": {0: {"Weight %": 10.0}},
         "added_rows": [],
         "deleted_rows": [],
     }
@@ -135,7 +134,7 @@ def test_weights_that_do_not_sum_to_one_hundred_are_handled():
 
     assert not app.exception, [str(e.value) for e in app.exception]
     captions = " ".join(str(c.value) for c in app.caption)
-    assert "przeskalowane" in captions
+    assert "rescaled" in captions
 
 
 def test_a_single_holding_still_works():
